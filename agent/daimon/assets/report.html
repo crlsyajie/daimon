@@ -1,0 +1,288 @@
+<title>__REPORT_TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a QC sheet. Slate header with the verdict, then an inspector (frame with markers beside
+   the fail list), then what works, fix order, the 20-lens panel and the checklist. */
+:root{
+  --paper:#ECEFF3; --surface:#FFFFFF; --sunk:#E2E6EC; --ink:#14171C; --muted:#5A6370; --rule:#D3D9E1;
+  --accent:#2346A8; --accent-soft:#DCE4FA;
+  --fail:#C5302A; --fail-soft:#F9E1DF; --polish:#A8670F; --polish-soft:#F7EBD6; --pass:#2D7A4C; --pass-soft:#DCEFE3;
+  --display:"Barlow Condensed","Arial Narrow",ui-sans-serif,system-ui,sans-serif;
+  --body:"Public Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#101317; --surface:#181C22; --sunk:#21262E; --ink:#E5E8ED; --muted:#98A2AE; --rule:#2B313A;
+  --accent:#86A2FF; --accent-soft:#1E2847;
+  --fail:#FF6E61; --fail-soft:#3A1D1B; --polish:#E5AA45; --polish-soft:#36290F; --pass:#62C78E; --pass-soft:#17301F;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#101317; --surface:#181C22; --sunk:#21262E; --ink:#E5E8ED; --muted:#98A2AE; --rule:#2B313A;
+  --accent:#86A2FF; --accent-soft:#1E2847;
+  --fail:#FF6E61; --fail-soft:#3A1D1B; --polish:#E5AA45; --polish-soft:#36290F; --pass:#62C78E; --pass-soft:#17301F;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.05}
+h2{font-size:30px;text-transform:uppercase;letter-spacing:.04em}
+h3{font-size:21px;font-weight:600}
+p{margin:0}
+.label{font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.12em;font-size:13px;color:var(--muted)}
+.mono{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+
+/* slate */
+.slate{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0;background:var(--surface);border:2px solid var(--ink)}
+.slate-main{padding:22px 24px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.slate h1{font-size:clamp(34px,5vw,56px);text-transform:uppercase}
+.slate-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;border-top:1px solid var(--rule)}
+.slate-meta div{padding:10px 14px 0 0;min-width:0}
+.slate-meta .v{font-weight:600;overflow-wrap:anywhere}
+.verdict{min-width:230px;padding:22px 24px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;border-left:2px solid var(--ink)}
+.verdict.fail{background:var(--fail);color:#fff}
+.verdict.pass{background:var(--pass);color:#fff}
+.verdict .big{font-family:var(--display);font-weight:700;font-size:84px;line-height:.85;letter-spacing:.02em}
+.verdict .label{color:inherit;opacity:.85}
+.verdict .score{font-family:var(--display);font-size:28px;font-weight:600}
+.verdict .score small{font-size:16px;opacity:.8}
+.summary{font-size:17px;max-width:72ch}
+.brief{color:var(--muted);max-width:72ch}
+
+/* inspector */
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{font:inherit;font-size:13px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);padding:6px 12px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.chipbtn{font:inherit;font-size:13px;font-weight:600;border:1.5px solid currentColor;background:transparent;padding:4px 11px;border-radius:999px;cursor:pointer}
+.chipbtn[aria-pressed="false"]{opacity:.45}
+.chipbtn.fail{color:var(--fail)} .chipbtn.polish{color:var(--polish)} .chipbtn.strength{color:var(--pass)}
+.inspector{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:24px;align-items:start}
+.viewer{position:sticky;top:max(12px,env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:10px;min-width:0}
+.frame{position:relative;background:#000;line-height:0;border:2px solid var(--ink)}
+.frame img{width:100%;height:auto;display:block}
+.frame-cap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted)}
+.mk{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;border:2.5px solid #fff;
+  font:700 14px/1 var(--body);color:#fff;display:grid;place-items:center;cursor:pointer;padding:0;
+  box-shadow:0 0 0 2px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.5);transition:transform .15s}
+.mk.fail{background:var(--fail)} .mk.polish{background:var(--polish)} .mk.strength{background:var(--pass)}
+.mk.active{transform:translate(-50%,-50%) scale(1.35);z-index:3}
+.ring{position:absolute;transform:translate(-50%,-50%);border:2px dashed #fff;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .2s;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+.ring.show{opacity:1}
+.list{display:flex;flex-direction:column;gap:12px;min-width:0}
+.issue{background:var(--surface);border:1px solid var(--rule);border-left:5px solid var(--polish);padding:14px 16px;display:flex;flex-direction:column;gap:8px;cursor:pointer;scroll-margin-top:16px}
+.issue.fail{border-left-color:var(--fail)} .issue.strength{border-left-color:var(--pass)}
+.issue.active{outline:2px solid var(--accent);outline-offset:1px}
+.issue-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12.5px;flex:none}
+.n.fail{background:var(--fail)} .n.polish{background:var(--polish)} .n.strength{background:var(--pass)}
+.sev{font-family:var(--display);font-weight:700;letter-spacing:.1em;font-size:13px;text-transform:uppercase}
+.sev.fail{color:var(--fail)} .sev.polish{color:var(--polish)} .sev.strength{color:var(--pass)}
+.cat{font-size:12px;font-weight:600;background:var(--sunk);padding:2px 8px}
+.issue .where{margin-left:auto;color:var(--muted)}
+.issue p b{font-weight:700}
+.crop{width:100%;height:auto;border:1px solid var(--rule)}
+.prompt{background:var(--sunk);border:1px solid var(--rule);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.prompt pre{margin:0;white-space:pre-wrap;font-family:var(--mono);font-size:12.5px;line-height:1.5}
+.prompt-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.copy{font:600 12px var(--body);background:var(--ink);color:var(--paper);border:0;padding:5px 10px;cursor:pointer}
+.by{font-size:12.5px;color:var(--muted)}
+button:focus-visible,.issue:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* strengths */
+.strengths{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.strength-card{background:var(--surface);border:1px solid var(--rule);border-top:4px solid var(--pass);padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.strength-card .by{margin-top:auto}
+
+/* fix order */
+.fixplan{margin:0;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+.fixplan li{counter-increment:s;display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--rule)}
+.fixplan li::before{content:counter(s,decimal-leading-zero);font-family:var(--display);font-weight:700;font-size:24px;color:var(--accent);line-height:1}
+
+/* panel */
+.panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.field{background:var(--surface);border:1px solid var(--rule);display:flex;flex-direction:column;min-width:0}
+.field-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 16px;border-bottom:2px solid var(--ink)}
+.field-head .avg{font-family:var(--display);font-size:26px;font-weight:700}
+.member{padding:12px 16px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:6px}
+.member:last-child{border-bottom:0}
+.member-top{display:grid;grid-template-columns:minmax(0,1fr) 110px 34px;gap:10px;align-items:center}
+.member-name{font-weight:700}
+.member-lens{font-size:12.5px;color:var(--muted)}
+.bar{height:6px;background:var(--sunk);position:relative}
+.bar span{position:absolute;inset:0 auto 0 0;background:var(--accent)}
+.bar span.low{background:var(--fail)} .bar span.mid{background:var(--polish)} .bar span.high{background:var(--pass)}
+.member-score{font-family:var(--display);font-weight:700;font-size:20px;text-align:right;font-variant-numeric:tabular-nums}
+.member-note{font-size:14px}
+.member-pattern{font-size:13px;color:var(--muted);background:var(--sunk);padding:6px 10px}
+.member-pattern .label{font-size:11.5px;margin-right:6px;color:var(--accent)}
+
+/* checklist */
+.checklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0;border-top:1px solid var(--rule);border-left:1px solid var(--rule)}
+.check{padding:12px 14px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);background:var(--surface);display:flex;flex-direction:column;gap:4px;min-width:0}
+.check .st{font-family:var(--display);font-weight:700;letter-spacing:.1em;font-size:13px;text-transform:uppercase}
+.st.fail{color:var(--fail)} .st.pass{color:var(--pass)} .st.polish{color:var(--polish)} .st.na{color:var(--muted)}
+.check p{font-size:13.5px;color:var(--muted)}
+footer{color:var(--muted);font-size:13px;max-width:80ch;border-top:1px solid var(--rule);padding-top:14px}
+
+@media (max-width:900px){
+  .inspector{grid-template-columns:minmax(0,1fr)}
+  .viewer{position:static}
+  .panel{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:620px){
+  .slate{grid-template-columns:minmax(0,1fr)}
+  .verdict{border-left:0;border-top:2px solid var(--ink);min-width:0;flex-direction:row;align-items:flex-end;flex-wrap:wrap}
+  .verdict .big{font-size:64px}
+  .mk{width:24px;height:24px;font-size:12px}
+  .member-top{grid-template-columns:minmax(0,1fr) 70px 30px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+const R = /*__DATA__*/null;
+const MODES = {photoreal:"Photoreal", hybrid:"Hybrid: real people + CGI", stylized:"3D / stylized"};
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const sevName = {fail:"Fail", polish:"Polish", strength:"Works"};
+
+function render(){
+  const app = document.getElementById("app");
+  const issues = (R.issues||[]).map((x,i)=>({...x, kind:x.severity||"polish", n:i+1}));
+  const strengths = (R.strengths||[]).map((x,i)=>({...x, kind:"strength", n:i+1}));
+  const fails = issues.filter(i=>i.kind==="fail").length, polish = issues.length - fails;
+  const assets = R.assets||[];
+  const v = (R.verdict||"FAIL").toLowerCase();
+
+  app.innerHTML = `
+  <header class="slate">
+    <div class="slate-main">
+      <div class="label">Realism QA · ${esc(R.date)}</div>
+      <h1>${esc(R.title)}</h1>
+      <div class="slate-meta">
+        <div><div class="label">Mode</div><div class="v">${esc(MODES[R.mode]||R.mode)}</div></div>
+        <div><div class="label">Files</div><div class="v">${assets.map(a=>esc(a.file||a.label)).filter((x,i,a)=>a.indexOf(x)===i).join(", ")}</div></div>
+        <div><div class="label">Delivery</div><div class="v">${esc(R.delivery||"—")}</div></div>
+        <div><div class="label">Rule</div><div class="v">Zero tolerance</div></div>
+      </div>
+    </div>
+    <div class="verdict ${v}">
+      <div><div class="label">Verdict</div><div class="big">${esc(R.verdict)}</div></div>
+      <div>
+        <div class="label">${fails ? `${fails} fail${fails>1?"s":""} block release` : "Nothing gives it away"}</div>
+        <div class="score">${esc(R.score)}<small> / 100 craft</small></div>
+      </div>
+    </div>
+  </header>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <p class="summary">${esc(R.summary)}</p>
+    ${R.brief?`<p class="brief"><b>Brief:</b> ${esc(R.brief)}</p>`:""}
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Fails and fixes</h2>
+      <div class="filters">
+        <button class="chipbtn fail" data-f="fail" aria-pressed="true">Fails ${fails}</button>
+        <button class="chipbtn polish" data-f="polish" aria-pressed="true">Polish ${polish}</button>
+        <button class="chipbtn strength" data-f="strength" aria-pressed="false">Works ${strengths.length}</button>
+      </div>
+    </div>
+    ${assets.length>1?`<div class="tabs" role="tablist">${assets.map((a,i)=>`<button class="tab" role="tab" data-a="${esc(a.id)}" aria-selected="${i===0}">${esc(a.label)}${a.timecode?` · <span class="mono">${esc(a.timecode)}</span>`:""}</button>`).join("")}</div>`:""}
+    <div class="inspector">
+      <div class="viewer">
+        <div class="frame" id="frame"></div>
+        <div class="frame-cap"><span class="mono" id="cap"></span><span class="mono">click a marker or a card</span></div>
+      </div>
+      <div class="list" id="list"></div>
+    </div>
+  </section>
+
+  ${strengths.length?`<section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>What works</h2><span class="label">Keep these when fixing</span></div>
+    <div class="strengths">${strengths.map(s=>`<div class="strength-card">
+      <div class="issue-top"><span class="n strength">${s.n}</span><span class="cat">${esc(s.category)}</span></div>
+      <h3>${esc(s.title)}</h3><p>${esc(s.detail)}</p>
+      ${s.credited_by?`<div class="by">Credited by ${esc((s.credited_by||[]).join(", "))}</div>`:""}
+    </div>`).join("")}</div></section>`:""}
+
+  ${(R.fix_plan||[]).length?`<section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Fix order</h2><span class="label">Do these in sequence, then re-check</span></div>
+    <ol class="fixplan">${R.fix_plan.map(s=>`<li><div>${esc(s)}</div></li>`).join("")}</ol></section>`:""}
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Director panel</h2><span class="label">20 lenses · score out of 10</span></div>
+    <div class="panel">${(R.panel||[]).map(f=>{
+      const avg = f.members.reduce((s,m)=>s+(+m.score||0),0)/f.members.length;
+      return `<div class="field"><div class="field-head"><h3>${esc(f.field)}</h3><span class="avg">${avg.toFixed(1)}</span></div>
+      ${f.members.map(m=>{const sc=+m.score||0, cls=sc<=5?"low":sc<=7?"mid":"high";
+        return `<div class="member"><div class="member-top">
+          <div><div class="member-name">${esc(m.name)}</div><div class="member-lens">${esc(m.lens)}</div></div>
+          <div class="bar" aria-hidden="true"><span class="${cls}" style="width:${sc*10}%"></span></div>
+          <div class="member-score">${sc}</div></div>
+          ${m.pattern?`<p class="member-pattern"><span class="label">How they work</span> ${esc(m.pattern)}</p>`:""}
+          <p class="member-note">${esc(m.note)}</p></div>`}).join("")}
+      </div>`}).join("")}</div>
+  </section>
+
+  ${(R.checklist||[]).length?`<section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Checklist</h2><span class="label">Every area inspected</span></div>
+    <div class="checklist">${R.checklist.map(c=>`<div class="check"><div class="st ${esc(c.status)}">${esc({fail:"Fail",pass:"Pass",polish:"Polish",na:"n/a"}[c.status]||c.status)}</div><b>${esc(c.area)}</b><p>${esc(c.note)}</p></div>`).join("")}</div></section>`:""}
+
+  <footer>The director panel reads the work through each person's documented working methods and publicly known craft standards (sources in the skill's panel reference). The notes are interpretive lenses written for this review, not statements by or endorsements from those people. Markers are placed in percent of the frame; detail crops are from the full-resolution file.</footer>`;
+
+  // inspector state
+  const state = {asset: assets[0]?.id, show: {fail:true, polish:true, strength:false}, active:null};
+  const all = [...issues, ...strengths];
+  const keyOf = it => it.kind+"-"+it.n;
+
+  function draw(){
+    const a = assets.find(x=>x.id===state.asset) || assets[0];
+    const frame = document.getElementById("frame"), list = document.getElementById("list");
+    document.getElementById("cap").textContent = a ? `${a.label}${a.timecode?"  ·  "+a.timecode:""}` : "";
+    const onAsset = it => !it.asset || it.asset===a.id;
+    const vis = all.filter(it=>state.show[it.kind] && onAsset(it));
+    frame.innerHTML = a ? `<img src="${a.src}" alt="${esc(a.label)}">` +
+      vis.filter(it=>it.x!=null).map(it=>`${it.r?`<div class="ring ${state.active===keyOf(it)?"show":""}" style="left:${it.x}%;top:${it.y}%;width:${it.r*2}%;aspect-ratio:1"></div>`:""}<button class="mk ${it.kind} ${state.active===keyOf(it)?"active":""}" style="left:${it.x}%;top:${it.y}%" data-k="${keyOf(it)}" aria-label="${sevName[it.kind]} ${it.n}: ${esc(it.title)}">${it.n}</button>`).join("") : "";
+    const others = all.filter(it=>state.show[it.kind] && !onAsset(it)).length;
+    list.innerHTML = vis.map(it=>`<article class="issue ${it.kind} ${state.active===keyOf(it)?"active":""}" id="c-${keyOf(it)}" data-k="${keyOf(it)}" tabindex="0">
+      <div class="issue-top"><span class="n ${it.kind}">${it.n}</span><span class="sev ${it.kind}">${sevName[it.kind]}</span><span class="cat">${esc(it.category)}</span>
+        <span class="where mono">${it.timecode?esc(it.timecode):it.x!=null?`x ${Math.round(it.x)} · y ${Math.round(it.y)}`:""}</span></div>
+      <h3>${esc(it.title)}</h3>
+      ${it.crop_src?`<img class="crop" src="${it.crop_src}" alt="Detail crop: ${esc(it.title)}" loading="lazy">`:""}
+      <p>${esc(it.detail)}</p>
+      ${it.why?`<p><b>Why a viewer notices:</b> ${esc(it.why)}</p>`:""}
+      ${it.fix?`<p><b>Fix:</b> ${esc(it.fix)}</p>`:""}
+      ${it.fix_prompt?`<div class="prompt"><div class="prompt-head"><span class="label">Fix prompt</span><button class="copy" type="button">Copy</button></div><pre>${esc(it.fix_prompt)}</pre></div>`:""}
+      ${(it.flagged_by||it.credited_by)?`<div class="by">${it.kind==="strength"?"Credited":"Flagged"} by ${esc((it.flagged_by||it.credited_by).join(", "))}</div>`:""}
+    </article>`).join("") + (others?`<p class="label">${others} more on other frames, switch frame above</p>`:"") +
+    (!vis.length?`<p class="brief">Nothing to show with these filters.</p>`:"");
+  }
+  function activate(k, scrollCard){
+    state.active = state.active===k ? null : k; draw();
+    if(state.active && scrollCard){ const c=document.getElementById("c-"+k); c&&c.scrollIntoView({behavior:"smooth",block:"nearest"}); }
+  }
+  app.addEventListener("click", e=>{
+    const cp = e.target.closest(".copy");
+    if(cp){ e.stopPropagation(); const t=cp.closest(".prompt").querySelector("pre");
+      navigator.clipboard?.writeText(t.textContent).then(()=>{cp.textContent="Copied";setTimeout(()=>cp.textContent="Copy",1500)})
+        .catch(()=>{const r=document.createRange();r.selectNodeContents(t);const s=getSelection();s.removeAllRanges();s.addRange(r);cp.textContent="Selected, press ⌘C"});
+      return; }
+    const mk = e.target.closest(".mk"); if(mk){ activate(mk.dataset.k,true); return; }
+    const card = e.target.closest(".issue"); if(card && !e.target.closest("pre")){ const it=all.find(x=>keyOf(x)===card.dataset.k);
+      if(it && it.asset && it.asset!==state.asset){ state.asset=it.asset; syncTabs(); } activate(card.dataset.k,false); return; }
+    const f = e.target.closest(".chipbtn"); if(f){ state.show[f.dataset.f]=!state.show[f.dataset.f]; f.setAttribute("aria-pressed",state.show[f.dataset.f]); draw(); return; }
+    const tab = e.target.closest(".tab"); if(tab){ state.asset=tab.dataset.a; state.active=null; syncTabs(); draw(); }
+  });
+  app.addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ") && e.target.classList.contains("issue")){ e.preventDefault(); e.target.click(); }});
+  function syncTabs(){ document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t.dataset.a===state.asset)); }
+  draw();
+}
+if(R) render(); else document.getElementById("app").innerHTML = "<p>No review data. Run build_report.py.</p>";
+</script>

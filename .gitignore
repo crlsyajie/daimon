@@ -1,3 +1,5 @@
 daimon.html
 .DS_Store
 __pycache__/
+model/cache/
+model/*.log

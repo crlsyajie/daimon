@@ -1,0 +1,30 @@
+{
+  "Film directors": {
+    "Stanley Kubrick": {"lens": "Precision, geometry, nothing accidental", "pattern": "Candlelit Barry Lyndon on NASA f/0.7 lenses; one-point perspective; take after take until exact."},
+    "David Fincher": {"lens": "Invisible VFX, take-to-take consistency", "pattern": "~1,000 invisible VFX shots on The Social Network; 40+ takes, split-screened; camera moves only with the actor."},
+    "Denis Villeneuve": {"lens": "Scale, atmosphere, light through air", "pattern": "Real locations and built sets over green screen; sand screens on Dune; haze and slow reveals."},
+    "Christopher Nolan": {"lens": "Practical realism, physics", "pattern": "Real plane crash in Tenet, real truck flip in The Dark Knight; Kip Thorne's physics for the black hole."},
+    "Wong Kar-wai": {"lens": "Caught moments, human texture", "pattern": "Finds the film while shooting; handheld with Christopher Doyle; step-printed motion; framing through glass and doors."}
+  },
+  "Cinematographers": {
+    "Roger Deakins": {"lens": "Motivated light, every source explained", "pattern": "Few sources, often in frame; every light has a logical origin; one LUT for a whole film."},
+    "Emmanuel Lubezki": {"lens": "Natural light, backlight and bounce", "pattern": "The Revenant: only natural light on location, one campfire exception; negative fill; long takes on wide lenses."},
+    "Hoyte van Hoytema": {"lens": "Optical and format truth", "pattern": "IMAX and 65mm film; infrared-plus-film rig for day-for-night; grain, halation, real falloff."},
+    "Greig Fraser": {"lens": "Digital integration, interactive light", "pattern": "LED-volume StageCraft on The Mandalorian so the world lights the actors; sand screens on Dune."},
+    "Bradford Young": {"lens": "Shadow and honest skin", "pattern": "Underexposed, soft images (Selma, Arrival); rich darker skin without flattening fill."}
+  },
+  "Photographers": {
+    "Annie Leibovitz": {"lens": "Portrait light that tells the story", "pattern": "Concept-led, researched portraits; large soft painterly key blended with ambient; staged productions."},
+    "Peter Lindbergh": {"lens": "Real skin, no retouching", "pattern": "Hated retouching; 2017 Pirelli calendar against the 'terror of perfection and youth'."},
+    "Steve McCurry": {"lens": "Eyes, colour, documentary truth", "pattern": "Waits for the moment; Kodachrome colour; the eyes as centre; 2016 edit controversy shows audiences punish manipulation."},
+    "Gregory Crewdson": {"lens": "Staged realism, every light placed", "pattern": "Crews of ~40-50, months of prep, rain and dry ice, ~50 large-format frames per scene, refined in post."},
+    "Irving Penn": {"lens": "Object and material precision", "pattern": "1948 corner portraits; bare backdrops and window or north light; meticulous still life."}
+  },
+  "VFX / CGI supervisors": {
+    "Joe Letteri": {"lens": "Digital humans, creatures, anatomy", "pattern": "Co-developed Gollum's subsurface-scattering skin (Academy technical award): translucency sells skin and eyes."},
+    "Paul Franklin": {"lens": "Physically accurate light and scale", "pattern": "Interstellar: Thorne's relativity equations became the black-hole renderer, then deliberate tweaks for visibility."},
+    "John Knoll": {"lens": "Compositing, edges, grain match", "pattern": "ILM supervisor on Pirates of the Caribbean and Rogue One; co-creator of Photoshop."},
+    "Rob Legato": {"lens": "Real camera language", "pattern": "Jungle Book and Lion King virtual camera modelled on an ARRI Alexa, operated on real dollies and cranes."},
+    "Dennis Muren": {"lens": "Does it feel photographed?", "pattern": "ILM's most awarded supervisor (Jurassic Park, T2); CG dinosaurs replaced stop-motion once they felt real."}
+  }
+}
