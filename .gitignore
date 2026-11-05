@@ -3,3 +3,4 @@ daimon.html
 __pycache__/
 model/*.log
 model/cache/*.log
+site/

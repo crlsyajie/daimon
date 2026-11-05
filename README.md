@@ -42,3 +42,13 @@ python3 build.py
 Publish `daimon.html` as a Claude artifact with the capability `{"sample": {"images": true}}`.
 
 `daimon.html` is a build output, so it isn't committed.
+
+## Web demo
+
+The demo at https://crlsyajie.github.io/daimon/ shows the example report. Reviews only run inside Claude, so its note links to the Claude artifact.
+
+```bash
+python3 build.py --pages
+```
+
+This also writes `site/index.html`, a standalone page. Publish it as `index.html` on the `gh-pages` branch.
