@@ -1,0 +1,694 @@
+<title>Daimon</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a QC desk. Intake slate on top (drop a file, pick the mode, run), then the report:
+   verdict slate, inspector (frame with markers beside the fail list), what works, fix order,
+   the 20-lens panel and the checklist. */
+:root{
+  --paper:#ECEFF3; --surface:#FFFFFF; --sunk:#E2E6EC; --ink:#14171C; --muted:#5A6370; --rule:#D3D9E1;
+  --accent:#2346A8; --accent-soft:#DCE4FA; --on-accent:#FFFFFF;
+  --fail:#C5302A; --polish:#A8670F; --pass:#2D7A4C;
+  --display:"Barlow Condensed","Arial Narrow",ui-sans-serif,system-ui,sans-serif;
+  --body:"Public Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#101317; --surface:#181C22; --sunk:#21262E; --ink:#E5E8ED; --muted:#98A2AE; --rule:#2B313A;
+  --accent:#86A2FF; --accent-soft:#1E2847; --on-accent:#0E1220;
+  --fail:#FF6E61; --polish:#E5AA45; --pass:#62C78E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#101317; --surface:#181C22; --sunk:#21262E; --ink:#E5E8ED; --muted:#98A2AE; --rule:#2B313A;
+  --accent:#86A2FF; --accent-soft:#1E2847; --on-accent:#0E1220;
+  --fail:#FF6E61; --polish:#E5AA45; --pass:#62C78E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 56px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:36px}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.05}
+h2{font-size:30px;text-transform:uppercase;letter-spacing:.04em}
+h3{font-size:21px;font-weight:600}
+p{margin:0}
+.label{font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.12em;font-size:13px;color:var(--muted)}
+.mono{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+button{font:inherit}
+button:focus-visible,.issue:focus-visible,.drop:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* masthead */
+.mast{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand h1{font-size:clamp(44px,7vw,72px);text-transform:uppercase;letter-spacing:.06em;line-height:.9}
+.brand p{color:var(--muted);max-width:60ch}
+.greek{font-family:var(--display);font-weight:500;letter-spacing:.3em;color:var(--accent);font-size:15px}
+
+/* intake */
+.intake{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);background:var(--surface);border:2px solid var(--ink)}
+.drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:250px;padding:20px;
+  border-right:2px solid var(--ink);background:repeating-linear-gradient(-45deg,var(--sunk) 0 1px,transparent 1px 12px);cursor:pointer;text-align:center}
+.drop.over{background:var(--accent-soft)}
+.drop .big{font-family:var(--display);font-weight:700;font-size:28px;text-transform:uppercase;letter-spacing:.04em}
+.drop .hint{color:var(--muted);font-size:13.5px;max-width:42ch}
+.drop img,.drop video{max-width:100%;max-height:300px;display:block;border:1px solid var(--rule)}
+.drop .fname{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.controls{padding:18px 20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.modes{display:flex;flex-direction:column;gap:6px;border:0;padding:0;margin:0}
+.mode{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;align-items:start;padding:9px 12px;border:1px solid var(--rule);cursor:pointer}
+.mode:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.mode input{margin:3px 0 0;accent-color:var(--accent)}
+.mode b{display:block}
+.mode span{font-size:13px;color:var(--muted)}
+textarea{font:inherit;font-size:14px;width:100%;min-height:62px;resize:vertical;padding:8px 10px;border:1px solid var(--rule);background:var(--paper);color:var(--ink)}
+.go{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border:0;background:var(--accent);color:var(--on-accent);font-family:var(--display);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:18px;padding:10px 22px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink);font-size:15px;padding:7px 14px}
+.status{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.err{color:var(--fail);font-weight:600}
+.note{font-size:13px;color:var(--muted)}
+
+/* report */
+.report{display:flex;flex-direction:column;gap:36px}
+.banner{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 14px;background:var(--accent-soft);color:var(--ink);font-size:14px}
+.slate{display:grid;grid-template-columns:minmax(0,1fr) auto;background:var(--surface);border:2px solid var(--ink)}
+.slate-main{padding:22px 24px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.slate h1{font-size:clamp(32px,4.6vw,52px);text-transform:uppercase}
+.slate-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:1px solid var(--rule)}
+.slate-meta div{padding:10px 14px 0 0;min-width:0}
+.slate-meta .v{font-weight:600;overflow-wrap:anywhere}
+.verdict{min-width:230px;padding:22px 24px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;border-left:2px solid var(--ink);color:#fff}
+.verdict.fail{background:var(--fail)} .verdict.pass{background:var(--pass)}
+.verdict .big{font-family:var(--display);font-weight:700;font-size:84px;line-height:.85;letter-spacing:.02em}
+.verdict .label{color:inherit;opacity:.88}
+.verdict .score{font-family:var(--display);font-size:28px;font-weight:600}
+.verdict .score small{font-size:16px;opacity:.85}
+.summary{font-size:17px;max-width:72ch}
+.brief{color:var(--muted);max-width:72ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{font-size:13px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);padding:6px 12px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.tab .cnt{margin-left:6px;color:var(--fail);font-weight:700}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.chipbtn{font-size:13px;font-weight:600;border:1.5px solid currentColor;background:transparent;padding:4px 11px;border-radius:999px;cursor:pointer}
+.chipbtn[aria-pressed="false"]{opacity:.45}
+.chipbtn.fail{color:var(--fail)} .chipbtn.polish{color:var(--polish)} .chipbtn.strength{color:var(--pass)}
+.inspector{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:24px;align-items:start}
+.viewer{position:sticky;top:max(12px,env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:10px;min-width:0}
+.frame{position:relative;background:#000;line-height:0;border:2px solid var(--ink)}
+.frame img{width:100%;height:auto;display:block}
+.frame-cap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted)}
+.mk{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;border:2.5px solid #fff;
+  font:700 14px/1 var(--body);color:#fff;display:grid;place-items:center;cursor:pointer;padding:0;
+  box-shadow:0 0 0 2px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.5);transition:transform .15s}
+.mk.fail{background:var(--fail)} .mk.polish{background:var(--polish)} .mk.strength{background:var(--pass)}
+.mk.active{transform:translate(-50%,-50%) scale(1.35);z-index:3}
+.ring{position:absolute;transform:translate(-50%,-50%);border:2px dashed #fff;border-radius:50%;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+.list{display:flex;flex-direction:column;gap:12px;min-width:0}
+.issue{background:var(--surface);border:1px solid var(--rule);border-left:5px solid var(--polish);padding:14px 16px;display:flex;flex-direction:column;gap:8px;cursor:pointer;scroll-margin-top:16px}
+.issue.fail{border-left-color:var(--fail)} .issue.strength{border-left-color:var(--pass)}
+.issue.active{outline:2px solid var(--accent);outline-offset:1px}
+.issue-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12.5px;flex:none}
+.n.fail{background:var(--fail)} .n.polish{background:var(--polish)} .n.strength{background:var(--pass)}
+.sev{font-family:var(--display);font-weight:700;letter-spacing:.1em;font-size:13px;text-transform:uppercase}
+.sev.fail{color:var(--fail)} .sev.polish{color:var(--polish)} .sev.strength{color:var(--pass)}
+.cat{font-size:12px;font-weight:600;background:var(--sunk);padding:2px 8px}
+.issue .where{margin-left:auto;color:var(--muted)}
+.issue p b{font-weight:700}
+.crop{width:100%;height:auto;border:1px solid var(--rule)}
+.prompt{background:var(--sunk);border:1px solid var(--rule);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.prompt pre{margin:0;white-space:pre-wrap;font-family:var(--mono);font-size:12.5px;line-height:1.5}
+.prompt-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.copy{font:600 12px var(--body);background:var(--ink);color:var(--paper);border:0;padding:5px 10px;cursor:pointer}
+.by{font-size:12.5px;color:var(--muted)}
+.strengths{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.strength-card{background:var(--surface);border:1px solid var(--rule);border-top:4px solid var(--pass);padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.strength-card .by{margin-top:auto}
+.fixplan{margin:0;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+.fixplan li{counter-increment:s;display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--rule)}
+.fixplan li::before{content:counter(s,decimal-leading-zero);font-family:var(--display);font-weight:700;font-size:24px;color:var(--accent);line-height:1}
+.panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.field{background:var(--surface);border:1px solid var(--rule);display:flex;flex-direction:column;min-width:0}
+.field-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 16px;border-bottom:2px solid var(--ink)}
+.field-head .avg{font-family:var(--display);font-size:26px;font-weight:700}
+.member{padding:12px 16px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:6px}
+.member:last-child{border-bottom:0}
+.member-top{display:grid;grid-template-columns:minmax(0,1fr) 110px 34px;gap:10px;align-items:center}
+.member-name{font-weight:700}
+.member-lens{font-size:12.5px;color:var(--muted)}
+.bar{height:6px;background:var(--sunk);position:relative}
+.bar span{position:absolute;inset:0 auto 0 0}
+.bar span.low{background:var(--fail)} .bar span.mid{background:var(--polish)} .bar span.high{background:var(--pass)}
+.member-score{font-family:var(--display);font-weight:700;font-size:20px;text-align:right;font-variant-numeric:tabular-nums}
+.member-note{font-size:14px}
+.member-pattern{font-size:13px;color:var(--muted);background:var(--sunk);padding:6px 10px}
+.member-pattern .label{font-size:11.5px;margin-right:6px;color:var(--accent)}
+.checklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));border-top:1px solid var(--rule);border-left:1px solid var(--rule)}
+.check{padding:12px 14px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);background:var(--surface);display:flex;flex-direction:column;gap:4px;min-width:0}
+.check .st{font-family:var(--display);font-weight:700;letter-spacing:.1em;font-size:13px;text-transform:uppercase}
+.st.fail{color:var(--fail)} .st.pass{color:var(--pass)} .st.polish{color:var(--polish)} .st.na{color:var(--muted)}
+.check p{font-size:13.5px;color:var(--muted)}
+footer{color:var(--muted);font-size:13px;max-width:80ch;border-top:1px solid var(--rule);padding-top:14px}
+.usage-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:2px solid var(--ink);background:var(--surface)}
+.usage-tiles>div{padding:14px 16px;border-right:1px solid var(--rule);min-width:0}
+.usage-tiles>div:last-child{border-right:0}
+.ut{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.05;font-variant-numeric:tabular-nums}
+.usage-table{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--rule)}
+.ur{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 72px;gap:14px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--rule)}
+.ur:last-child{border-bottom:0}
+.ubar{height:8px;background:var(--sunk);position:relative}
+.ubar span{position:absolute;inset:0 auto 0 0}
+.ubar span.in{background:var(--muted)} .ubar span.img{background:var(--accent)} .ubar span.out{background:var(--pass)}
+.un{text-align:right}
+.scroll{overflow-x:auto;border:1px solid var(--rule);background:var(--surface)}
+.logt{border-collapse:collapse;width:100%;font-size:13.5px;min-width:640px}
+.logt th{font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--muted);text-align:left;padding:8px 12px;border-bottom:2px solid var(--ink)}
+.logt td{padding:7px 12px;border-bottom:1px solid var(--rule)}
+.logt .r{text-align:right}
+@media (max-width:700px){ .usage-tiles{grid-template-columns:repeat(2,minmax(0,1fr))} .usage-tiles>div:nth-child(2){border-right:0} .usage-tiles>div:nth-child(-n+2){border-bottom:1px solid var(--rule)} .ur{grid-template-columns:minmax(0,1fr) 64px} .ubar{display:none} }
+
+@media (max-width:900px){
+  .inspector{grid-template-columns:minmax(0,1fr)}
+  .viewer{position:static}
+  .panel{grid-template-columns:minmax(0,1fr)}
+  .intake{grid-template-columns:minmax(0,1fr)}
+  .drop{border-right:0;border-bottom:2px solid var(--ink)}
+}
+@media (max-width:620px){
+  .slate{grid-template-columns:minmax(0,1fr)}
+  .verdict{border-left:0;border-top:2px solid var(--ink);min-width:0;flex-direction:row;align-items:flex-end;flex-wrap:wrap}
+  .verdict .big{font-size:64px}
+  .mk{width:24px;height:24px;font-size:12px}
+  .member-top{grid-template-columns:minmax(0,1fr) 70px 30px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="brand">
+      <span class="greek">ΔΑΙΜΩΝ</span>
+      <h1>Daimon</h1>
+      <p>Final QC for AI photos and video. Drop a file and Daimon judges it like a strict director: if anyone could tell it's AI, it fails.</p>
+    </div>
+  </header>
+
+  <section class="intake" aria-label="New review">
+    <label class="drop" id="drop" tabindex="0">
+      <input type="file" id="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" hidden>
+      <div id="dropBody" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+        <span class="big">Drop a photo or video</span>
+        <span class="hint">JPG, PNG or WebP stills, or MP4 / MOV / WebM clips (H.264 decodes best). Click to choose a file, or paste an image.</span>
+      </div>
+    </label>
+    <div class="controls">
+      <fieldset class="modes">
+        <legend class="label" style="margin-bottom:6px">Mode</legend>
+        <label class="mode"><input type="radio" name="mode" value="photoreal" checked><div><b>Photoreal</b><span>Must pass as a real photo or film. Any AI tell fails.</span></div></label>
+        <label class="mode"><input type="radio" name="mode" value="hybrid"><div><b>Hybrid: real people + CGI</b><span>People must be real. CG world must be lit and grounded like VFX.</span></div></label>
+        <label class="mode"><input type="radio" name="mode" value="stylized"><div><b>3D / stylized</b><span>May look rendered. Fails only on hallucinations.</span></div></label>
+      </fieldset>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label class="label" for="brief">Brief (optional)</label>
+        <textarea id="brief" placeholder="e.g. Aldar lifestyle campaign, 16:9 billboard, family at golden hour"></textarea>
+      </div>
+      <div class="go">
+        <button class="btn" id="run" disabled>Run QA</button>
+        <button class="btn ghost" id="stop" hidden>Stop</button>
+      </div>
+      <div class="status" id="status" aria-live="polite"><span class="note" id="statusText">Checking whether this view can reach Claude…</span></div>
+    </div>
+  </section>
+
+  <div id="report" class="report"></div>
+</div>
+
+<script>
+const EXAMPLE = /*__EXAMPLE__*/null;
+
+const PANEL = [
+ {field:"Film directors", members:[
+  {name:"Stanley Kubrick", lens:"Precision, geometry, nothing accidental", pattern:"Candlelit Barry Lyndon on NASA f/0.7 lenses; one-point perspective; take after take until exact.", checks:"one-lens geometry and perspective, exact symmetry, every prop placed on purpose, light true to its claimed source, straight lines in moves", rejects:"warped verticals, changing perspective, random clutter, invented text, sourceless light"},
+  {name:"David Fincher", lens:"Invisible VFX, take-to-take consistency", pattern:"~1,000 invisible VFX shots on The Social Network; 40+ takes, split-screened; camera moves only with the actor.", checks:"pixel-level cleanliness that still feels shot, continuity of hair/props/wardrobe/makeup between frames, camera moves motivated by subject, composite seams", rejects:"anything that reads as an effect, continuity jumps, unmotivated floating camera drift, added-looking skin/blood/liquid"},
+  {name:"Denis Villeneuve", lens:"Scale, atmosphere, light through air", pattern:"Real locations and built sets over green screen; sand screens on Dune; haze and slow reveals.", checks:"scale cues, aerial perspective (haze grows with distance), light through air, environment colour bouncing onto skin, holds long enough to feel real", rejects:"clean CG air with no depth falloff, skin lit by colours not in the environment, scale that doesn't add up"},
+  {name:"Christopher Nolan", lens:"Practical realism, physics", pattern:"Real plane crash in Tenet, real truck flip in The Dark Knight; Kip Thorne's physics for the black hole.", checks:"could it be done for real, gravity, momentum, mass, ground contact, effect light falling on people, physical trajectories", rejects:"weightless motion, missing shadows/contact, objects ignoring forces, VFX light that never touches actors"},
+  {name:"Wong Kar-wai", lens:"Caught moments, human texture", pattern:"Finds the film while shooting; handheld with Christopher Doyle; step-printed motion; framing through glass and doors.", checks:"caught vs posed, human imperfection in gesture and glance, surface and skin texture, organic blur and grain", rejects:"everyone smiling at once, stock staging, sterile surfaces, emotion without specific body language"}]},
+ {field:"Cinematographers", members:[
+  {name:"Roger Deakins", lens:"Motivated light, every source explained", pattern:"Few sources, often in frame; every light has a logical origin; one LUT for a whole film.", checks:"where each light comes from and whether everything obeys it, shadow direction, falloff, source colour, consistent grade", rejects:"light from nowhere, two suns, faces lit from a direction with no source, grade jumping shot to shot"},
+  {name:"Emmanuel Lubezki", lens:"Natural light, backlight and bounce", pattern:"The Revenant: only natural light on location, one campfire exception; negative fill; long takes on wide lenses.", checks:"sun/sky/bounce only, rim when sun is behind, shade skin tinted by ground and sky, believable light change over time", rejects:"front fill on a backlit subject, flat even outdoor light at golden hour, skin ignoring the environment"},
+  {name:"Hoyte van Hoytema", lens:"Optical and format truth", pattern:"IMAX and 65mm film; infrared-plus-film rig for day-for-night; grain, halation, real falloff.", checks:"one consistent optical system: grain, highlight roll-off, halation, depth of field matching sensor and focal length, distortion, vignetting", rejects:"grain-free plastic patches beside crunchy sharpened ones, digital highlight clipping, impossible depth of field"},
+  {name:"Greig Fraser", lens:"Digital integration, interactive light", pattern:"LED-volume StageCraft on The Mandalorian so the world lights the actors; sand screens on Dune.", checks:"CG world lighting the people (eyes, skin, reflections), matching black levels and contrast between layers, consistent lens texture", rejects:"wrong environment colour on skin, mismatched blacks, background cleaner or sharper than the lens allows"},
+  {name:"Bradford Young", lens:"Shadow and honest skin", pattern:"Underexposed, soft images (Selma, Arrival); rich darker skin without flattening fill.", checks:"honest skin tones across complexions, shadows that hold detail but stay dark, mood carried by exposure", rejects:"every face evenly bright, skin pushed to one beauty tone, lifted grey shadows"}]},
+ {field:"Photographers", members:[
+  {name:"Annie Leibovitz", lens:"Portrait light that tells the story", pattern:"Concept-led, researched portraits; large soft painterly key blended with ambient; staged productions.", checks:"light shaping the person, wardrobe/setting/pose serving one idea, expression specific to that person", rejects:"generic pretty light, characterless faces, staging that says nothing"},
+  {name:"Peter Lindbergh", lens:"Real skin, no retouching", pattern:"Hated retouching; 2017 Pirelli calendar against the 'terror of perfection and youth'.", checks:"pores, fine lines, under-eye texture, uneven tone, real lips and hair, makeup on real skin", rejects:"waxy, glossy, airbrushed or plastic skin, upscaler fake pores"},
+  {name:"Steve McCurry", lens:"Eyes, colour, documentary truth", pattern:"Waits for the moment; Kodachrome colour; the eyes as centre; 2016 edit controversy shows audiences punish manipulation.", checks:"eyes and catchlights, colour a real place gives, authentic cultural detail, no cloned or removed elements", rejects:"dead or mismatched eyes, impossible saturation, invented cultural details, clone repeats"},
+  {name:"Gregory Crewdson", lens:"Staged realism, every light placed", pattern:"Crews of ~40-50, months of prep, rain and dry ice, ~50 large-format frames per scene, refined in post.", checks:"staged but believable, every light motivated by a practical or the sun, story readable in one frame, composite reads as one moment", rejects:"staging without reason, beautiful but impossible light, composite seams"},
+  {name:"Irving Penn", lens:"Object and material precision", pattern:"1948 corner portraits; bare backdrops and window or north light; meticulous still life.", checks:"material truth of objects and products: edges, surface texture, reflections, labels, seams, stitching", rejects:"wrong product details, mushy object edges, surfaces not reflecting their environment"}]},
+ {field:"VFX / CGI supervisors", members:[
+  {name:"Joe Letteri", lens:"Digital humans, creatures, anatomy", pattern:"Co-developed Gollum's subsurface-scattering skin (Academy technical award): translucency sells skin and eyes.", checks:"light through skin (ears, nostrils, fingers in backlight), wet refractive eyes, anatomy and gait of people and animals, hair and fur strands", rejects:"plastic-reflecting skin, dead eyes, wrong animal anatomy, painted fur"},
+  {name:"Paul Franklin", lens:"Physically accurate light and scale", pattern:"Interstellar: Thorne's relativity equations became the black-hole renderer, then deliberate tweaks for visibility.", checks:"physically consistent light transport, scale and distance cues, simulations (water, smoke, dust, cloth) at the right size and speed", rejects:"impossible light, miniature-looking scale, simulations at the wrong speed"},
+  {name:"John Knoll", lens:"Compositing, edges, grain match", pattern:"ILM supervisor on Pirates of the Caribbean and Rogue One; co-creator of Photoshop.", checks:"edges and light wrap, matching grain, blacks, colour and focus between layers, haze over distant elements", rejects:"halos, hard mattes, layers with different grain or sharpness, missing light wrap"},
+  {name:"Rob Legato", lens:"Real camera language", pattern:"Jungle Book and Lion King virtual camera modelled on an ARRI Alexa, operated on real dollies and cranes.", checks:"could a real operator with real gear make this frame or move, focus pulls, lens breathing, operator imperfection, flare behaviour", rejects:"weightless impossible camera paths, robotic perfect moves, focus that never misses, flares ignoring the lens"},
+  {name:"Dennis Muren", lens:"Does it feel photographed?", pattern:"ILM's most awarded supervisor (Jurassic Park, T2); CG dinosaurs replaced stop-motion once they felt real.", checks:"gut reaction at thumbnail and full size, what breaks the illusion first, the frame as a whole", rejects:"anything that feels off before you can say why: name what it is"}]}
+];
+const LOOKUP = {}; PANEL.forEach(f=>f.members.forEach(m=>LOOKUP[m.name]=m));
+const MODES = {photoreal:"Photoreal", hybrid:"Hybrid: real people + CGI", stylized:"3D / stylized"};
+const MODE_RULES = {
+  photoreal:"PHOTOREAL: everything must pass as a real photograph or real footage. Any AI tell or hallucination anywhere is a FAIL.",
+  hybrid:"HYBRID: people (skin, hands, eyes, hair, cloth, movement) and anything they touch must be fully real. Environments, set extensions and CG elements may be stylised but must be lit, shadowed, focused and grained like a real VFX shot. Any AI tell on a person, or any CG element not integrated with the plate, is a FAIL.",
+  stylized:"3D / STYLIZED: it may look rendered or AI. Do not fail it for looking CG. FAIL only on hallucinations: broken geometry, wrong counts, melting/merging, gibberish text, continuity breaks, physics that contradicts the piece's own rules."
+};
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const $ = id => document.getElementById(id);
+
+/* ---------- intake ---------- */
+let sample = null, limits = null, job = null, ctl = null, timer = null;
+const statusEl = $("status");
+function setStatus(html){ statusEl.innerHTML = html; }
+
+(async ()=>{
+  try { sample = await window.claude?.use?.("sample"); } catch { sample = null; }
+  if (!sample){ setStatus(`<span class="note">Open Daimon in Claude to run reviews. The example report below shows what you get.</span>`); return; }
+  limits = await sample.limits().catch(()=>null);
+  if (!limits?.images){ setStatus(`<span class="note">This view can't send images to Claude, so reviews can't run here. Try the Claude desktop or web app.</span>`); sample = null; return; }
+  setStatus(`<span class="note">Ready. Drop a file, pick the mode, then Run QA.</span>`);
+  refreshRun();
+})();
+
+function refreshRun(){ $("run").disabled = !(sample && job && !ctl); }
+
+const drop = $("drop"), fileIn = $("file");
+drop.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fileIn.click(); }});
+["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop", e=>{ const f=e.dataTransfer?.files?.[0]; if(f) takeFile(f); });
+fileIn.addEventListener("change", ()=>{ if(fileIn.files[0]) takeFile(fileIn.files[0]); });
+document.addEventListener("paste", e=>{ const f=[...(e.clipboardData?.files||[])][0]; if(f) takeFile(f); });
+
+function takeFile(f){
+  const isVideo = f.type.startsWith("video/") || /\.(mp4|mov|m4v|webm)$/i.test(f.name);
+  const isImage = f.type.startsWith("image/");
+  if(!isVideo && !isImage){ setStatus(`<span class="err">That file isn't a photo or video. Use JPG, PNG, WebP, MP4, MOV or WebM.</span>`); return; }
+  if (job?.url) URL.revokeObjectURL(job.url);
+  const url = URL.createObjectURL(f);
+  job = {file:f, kind: isVideo?"video":"image", url};
+  $("dropBody").innerHTML = (isVideo?`<video src="${url}" muted playsinline controls></video>`:`<img src="${url}" alt="Selected file">`) +
+    `<span class="fname">${esc(f.name)} · ${(f.size/1048576).toFixed(1)} MB</span><span class="hint">Click or drop to replace</span>`;
+  if (sample) setStatus(`<span class="note">Ready to review ${isVideo?"this clip":"this image"}.</span>`);
+  refreshRun();
+}
+
+/* ---------- media prep ---------- */
+const TILES = [{x0:0,y0:0},{x0:45,y0:0},{x0:0,y0:45},{x0:45,y0:45}]; // each 55% x 55%
+const TS = 55;
+function canvasFrom(src, sx, sy, sw, sh, maxEdge){
+  const s = Math.min(1, maxEdge/Math.max(sw,sh));
+  const c = document.createElement("canvas"); c.width=Math.round(sw*s); c.height=Math.round(sh*s);
+  c.getContext("2d").drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height); return c;
+}
+const toBlob = (c,q=.9)=>new Promise(r=>c.toBlob(r,"image/jpeg",q));
+const fmtT = t => { const m=Math.floor(t/60), s=(t%60); return `${String(m).padStart(2,"0")}:${s.toFixed(2).padStart(5,"0")}`; };
+
+async function prepImage(){
+  const bmp = await createImageBitmap(job.file);
+  const W=bmp.width, H=bmp.height, max = limits.images.maxCount||1;
+  const pos = ["top-left","top-right","bottom-left","bottom-right"];
+  const full = canvasFrom(bmp,0,0,W,H,1600);
+  const blobs=[await toBlob(full)], sent=[{label:"Full frame", w:full.width, h:full.height}];
+  const tiles = TILES.slice(0, Math.max(0, Math.min(4, max-1)));
+  for(const [i,t] of tiles.entries()){ const c = canvasFrom(bmp, W*t.x0/100, H*t.y0/100, W*TS/100, H*TS/100, 1600);
+    blobs.push(await toBlob(c)); sent.push({label:`Detail: ${pos[i]}`, w:c.width, h:c.height}); }
+  const guide = `Image 1 is the full frame (original ${W}x${H}px).` + tiles.map((t,i)=>` Image ${i+2} is a full-resolution detail tile of the ${pos[i]} area, covering x ${t.x0}-${t.x0+TS}% and y ${t.y0}-${t.y0+TS}% of the full frame.`).join("") +
+    (tiles.length?` Use the tiles to inspect fine detail (hands, faces, text, edges, contact points).`:"");
+  return {W,H,blobs,guide,tiles,sent,
+    assets:[{id:"A", label:"Full frame", file:job.file.name, src: canvasFrom(bmp,0,0,W,H,1800).toDataURL("image/jpeg",.86), _src:bmp}],
+    meta:`${W}x${H} still`};
+}
+
+async function prepVideo(){
+  const v = document.createElement("video"); v.muted=true; v.playsInline=true; v.preload="auto"; v.src=job.url;
+  await new Promise((res,rej)=>{ v.onloadeddata=res; v.onerror=()=>rej({code:"decode"}); });
+  const d=v.duration, W=v.videoWidth, H=v.videoHeight;
+  if(!isFinite(d)||!W) throw {code:"decode"};
+  const n = Math.max(1, Math.min(limits.images.maxCount||1, 16, Math.ceil(d/0.5)));
+  const blobs=[], assets=[], times=[], sent=[];
+  for(let i=0;i<n;i++){
+    const t = Math.min(d-0.04, d*(i+0.5)/n);
+    await new Promise(r=>{ v.onseeked=r; v.currentTime=t; });
+    const c = canvasFrom(v,0,0,W,H,1600);
+    blobs.push(await toBlob(c,.88)); sent.push({label:`Frame ${i+1} · ${fmtT(t)}`, w:c.width, h:c.height});
+    const keep = document.createElement("canvas"); keep.width=W>1920?1920:W; keep.height=Math.round(H*keep.width/W);
+    keep.getContext("2d").drawImage(v,0,0,keep.width,keep.height);
+    assets.push({id:"F"+(i+1), label:"Frame "+(i+1), timecode:fmtT(t), file:job.file.name, src:canvasFrom(v,0,0,W,H,1600).toDataURL("image/jpeg",.84), _src:keep});
+    times.push(fmtT(t));
+  }
+  const guide = `Images 1-${n} are frames from one video (${W}x${H}, ${d.toFixed(2)} s), in time order, at: ` + times.map((t,i)=>`${i+1} = ${t}`).join(", ") +
+    `. Compare frames for identity, wardrobe, props, text and background consistency, morphing, flicker, impossible motion and continuity across cuts.`;
+  return {W,H,blobs,guide,tiles:[],sent,assets,meta:`${W}x${H} video, ${d.toFixed(1)} s, ${n} frames sampled`};
+}
+
+/* ---------- prompt ---------- */
+function buildPrompt(p, mode, brief){
+  const isVideo = job.kind==="video";
+  return `You are Daimon, the strictest final-QC director in the business, reviewing AI-produced ${isVideo?"video":"imagery"} for brand delivery.
+THE BAR: nobody should be able to tell it is AI unless the creator tells them. Zero tolerance: one FAIL fails the whole piece.
+
+${MODE_RULES[mode]}
+BRIEF: ${brief || "none given"}
+
+WHAT YOU ARE LOOKING AT: ${p.guide}
+
+HOW TO WORK: Inspect slowly, zone by zone. Before you call something wrong, check it in the image where it is clearest. Do not invent problems to look strict, and do not wave through anything you would not defend to a client. Also record what already works so fixes do not break it.
+
+CHECK ALL OF THESE:
+- Hands: finger count, thumb side for left/right and palm/back view, knuckles and nails, merging with objects, real grip.
+- Anatomy and feet: limbs, joints, feet and shoes, ears and earrings, teeth, neck.
+- Eyes: round equal pupils, same gaze point, catchlights matching the scene light and each other, glasses continuous.
+- Text and logos: every sign, label, screen, plate, jersey must be real readable text in the right language, or deliberately unreadable through distance/focus. Gibberish glyphs are a FAIL.
+- Objects: merging, unsupported objects, cloned/duplicated people or items, broken repeats (fences, windows, tiles), unidentifiable blobs.
+- Architecture: verticals and perspective consistent with one lens, continuous lines, glass reflecting what is in front of it.
+- Animals: leg count, gait, paws, fur strands, collars.
+- Physics, shadows and contact: contact shadows where things touch the ground, all cast shadows agreeing with one light, gravity on hair, cloth, water, thrown objects.
+- Light logic: one consistent key per source. If the sun is in frame, what faces camera is in shade and rim-lit. Front-lit faces in a backlit scene = "two suns" = FAIL.
+- Skin: pores, fine hair, uneven tone. FAIL on waxy, plastic, glossy AI sheen, or crunchy upscaler pores.
+- Lens and focus: one focal plane, smooth depth falloff, no cut-out sharp subjects.
+- Texture and grain: one noise structure across the frame; no smooth watercolour patches, halos against sky, HDR crunch.
+- Colour: no saturation a camera profile wouldn't produce; skin responds to environment colour.
+- Composition and story: posed stock staging, everyone perfect at once, sterile scenes, actions that don't add up.${isVideo?`
+- VIDEO: identity lock (same face, hair, moles, jewellery, outfit, logos every frame), morphing (fingers, teeth, text, patterns, background objects changing shape), motion weight (feet planting, no sliding), hair/cloth reacting, believable camera path for real gear, motion blur matching speed, flicker or boiling texture, exposure pumping, light changing direction, thrown objects following arcs, continuity across cuts.`:""}
+
+DIRECTOR PANEL: score each person 0-10 through their lens. Apply how they actually work to THIS frame. Write notes as "Through <surname>'s lens, ..." with something specific and visible. Never invent quotes. Anyone whose lens catches a FAIL scores 5 or less. ${mode==="stylized"?"In 3D/stylized mode do not mark down for looking rendered.":""}
+${PANEL.map(f=>f.field.toUpperCase()+":\n"+f.members.map(m=>`- ${m.name}. How they work: ${m.pattern} Checks: ${m.checks}. Rejects: ${m.rejects}.`).join("\n")).join("\n")}
+
+OUTPUT: reply with only one JSON object, no prose, in this shape:
+{"title":"2-4 word name for the piece",
+ "score":0-100 craft score,
+ "summary":"2-4 plain sentences: verdict, what kills it, what is good",
+ "issues":[{"severity":"fail" or "polish","category":"one word e.g. Light, Hands, Text, Skin, Objects, Physics, Texture, Animals, Anatomy, Eyes, Colour, Story${isVideo?", Identity, Morphing, Motion, Flicker, Continuity":""}",
+   "img":image number where it is clearest, "x":0-100 percent from left of THAT image, "y":0-100 percent from top of THAT image, "r":1-12 ring radius in percent of that image's width,${isVideo?` "timecode":"mm:ss.ss or a range",`:""}
+   "title":"short headline","detail":"exactly what is wrong","why":"why a viewer would notice","fix":"production fix",
+   "fix_prompt":"copy-ready prompt for an image/video edit model that fixes only this and keeps composition, faces, identity, poses, outfits and everything else unchanged",
+   "flagged_by":["panel names whose lens catches it"]}],
+ "strengths":[{"img":n,"x":..,"y":..,"category":"..","title":"..","detail":"..","credited_by":[".."]}],
+ "fix_plan":["ordered steps: global light before local details, then re-check"],
+ "panel":[{"field":"Film directors","members":[{"name":"Stanley Kubrick","score":0-10,"note":"1-2 sentences"}]}, ...all 4 fields, all 20 names, in the order given],
+ "checklist":[{"area":"Hands","status":"fail|polish|pass|na","note":"under 15 words"}]}
+Limits: at most 12 issues (fails first, most visible first), at most 5 strengths, at most 6 fix_plan steps. "polish" is for craft notes that would not give it away as AI. Markers must sit exactly on the problem.`;
+}
+
+/* ---------- run ---------- */
+const ERR = {
+  not_granted:"Daimon wasn't allowed to use Claude in this view. Allow it from the artifact's permissions to run reviews.",
+  sampling_disabled:"Claude isn't available for this account here.",
+  rate_limited:"You've hit a usage or rate limit. Wait a bit, then run it again.",
+  session_expired:"Your Claude session expired. Sign in again, then run it again.",
+  image_rejected:"Claude couldn't read one of the prepared images. Try exporting the file as JPG or MP4.",
+  refused:"Claude declined to review this file.",
+  invalid_json:"The report came back malformed. Run it again.",
+  empty_completion:"Claude returned nothing. Run it again.",
+  images_unavailable:"This view can't send images to Claude.",
+  prompt_too_large:"The request was too large. Try a shorter clip.",
+  decode:"This browser can't decode that video. Export it as H.264 MP4 and try again."
+};
+$("stop").onclick = ()=>ctl?.abort();
+$("run").onclick = async ()=>{
+  if(!job||!sample) return;
+  const mode = document.querySelector('input[name="mode"]:checked').value, brief = $("brief").value.trim();
+  ctl = new AbortController(); refreshRun(); $("stop").hidden=false;
+  const t0 = Date.now(); let phase = "Preparing frames";
+  const tick = ()=>setStatus(`<span class="dot"></span><span>${phase}</span><span class="mono">${Math.round((Date.now()-t0)/1000)}s</span>`);
+  tick(); timer = setInterval(tick, 1000);
+  try{
+    const p = job.kind==="video" ? await prepVideo() : await prepImage();
+    phase = "Daimon is inspecting (usually 1-3 minutes)"; tick();
+    const prompt = buildPrompt(p, mode, brief);
+    const res = await sample(prompt, {
+      images: p.blobs, modelTier:"complex", signal: ctl.signal, cache:false,
+      onText: ({text})=>{ phase = `Writing the report · ${text.length.toLocaleString()} characters`; }
+    });
+    const out = parseReply(res.text);
+    const R = assemble(out, p, mode, brief);
+    R.usage = measureUsage({prompt, sent:p.sent, reply:res.text, tier:res.modelTierApplied, truncated:res.truncated, seconds:Math.round((Date.now()-t0)/1000), kind:job.kind});
+    logUsage(R);
+    renderReport(R, false);
+    setStatus(`<span class="note">Review finished in ${Math.round((Date.now()-t0)/1000)}s. ${R.verdict === "FAIL" ? `${R.fail_count} fail${R.fail_count>1?"s":""} to fix.` : "Nothing gives it away."}</span>`);
+    $("report").scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(e){
+    const code = e?.code;
+    if(code==="cancelled") setStatus(`<span class="note">Stopped.</span>`);
+    else setStatus(`<span class="err">${esc(ERR[code] || "Something went wrong reaching Claude. Run it again.")}</span>`);
+    if(code==="not_granted"||code==="sampling_disabled"){ sample=null; }
+  }finally{
+    clearInterval(timer); ctl=null; $("stop").hidden=true; refreshRun();
+  }
+};
+
+/* ---------- usage ---------- */
+// Claude does not report token counts to the page, so these are estimates from what was sent and received:
+// text ≈ 1 token per 4 characters (JSON replies ≈ 1 per 3.5); images are downsized by the platform to about
+// 1.2 megapixels and cost about (width × height) / 750 tokens.
+function parseReply(text){
+  const tries = [text, (text.match(/```(?:json)?\s*([\s\S]*?)```/)||[])[1], text.slice(text.indexOf("{"), text.lastIndexOf("}")+1)];
+  for(const t of tries){ if(!t) continue; try{ const v = JSON.parse(t); if(v && typeof v==="object") return v; }catch{} }
+  throw {code:"invalid_json"};
+}
+const imgTokens = (w,h) => Math.ceil(Math.min(w*h, 1.2e6)/750);
+function measureUsage({prompt, sent, reply, tier, truncated, seconds, kind}){
+  const images = sent.map(s=>({label:s.label, px:`${s.w}×${s.h}`, tokens: imgTokens(s.w,s.h)}));
+  const promptTokens = Math.ceil(prompt.length/4), outputTokens = Math.ceil(reply.length/3.5);
+  const imageTokens = images.reduce((a,b)=>a+b.tokens,0);
+  return {kind, tier: tier||"complex", truncated: !!truncated, seconds, promptChars: prompt.length, promptTokens, images, imageTokens,
+    outputChars: reply.length, outputTokens, total: promptTokens+imageTokens+outputTokens};
+}
+const LOGKEY = "daimon.usage.v1";
+function readLog(){ try{ return JSON.parse(localStorage.getItem(LOGKEY)||"[]"); }catch{ return []; } }
+function logUsage(R){
+  try{ const log = readLog(); log.unshift({date:new Date().toISOString(), title:R.title, kind:R.usage.kind, verdict:R.verdict,
+    input:R.usage.promptTokens+R.usage.imageTokens, output:R.usage.outputTokens, total:R.usage.total, tier:R.usage.tier, seconds:R.usage.seconds});
+    localStorage.setItem(LOGKEY, JSON.stringify(log.slice(0,200))); }catch{}
+}
+const fmtN = n => Math.round(n).toLocaleString();
+function usageSection(U){
+  if(!U) return "";
+  const rows = [
+    {name:"Instructions, checklist and director panel", detail:`${fmtN(U.promptChars)} characters of text`, t:U.promptTokens, kind:"in"},
+    ...U.images.map(i=>({name:i.label, detail:`image sent at ${i.px}`, t:i.tokens, kind:"img"})),
+    {name:"Report written back", detail:`${fmtN(U.outputChars)} characters of JSON`, t:U.outputTokens, kind:"out"}
+  ];
+  const max = Math.max(...rows.map(r=>r.t));
+  const inTotal = U.promptTokens + U.imageTokens;
+  const log = readLog();
+  const sum = log.reduce((a,r)=>({n:a.n+1, t:a.t+(r.total||0)}),{n:0,t:0});
+  return `<section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Usage</h2><span class="label">${U.estimated?"Typical photo review, estimated":"This review, estimated"}</span></div>
+    <div class="usage-tiles">
+      <div><div class="label">Total</div><div class="ut">~${fmtN(U.total)}</div><div class="note">tokens, plus thinking</div></div>
+      <div><div class="label">Sent to Claude</div><div class="ut">~${fmtN(inTotal)}</div><div class="note">${fmtN(U.promptTokens)} text · ${fmtN(U.imageTokens)} in ${U.images.length} image${U.images.length>1?"s":""}</div></div>
+      <div><div class="label">Written back</div><div class="ut">~${fmtN(U.outputTokens)}</div><div class="note">${U.truncated?"cut short at the length limit":"complete report"}</div></div>
+      <div><div class="label">Model · time</div><div class="ut">${esc(U.tier==="complex"?"Strongest":U.tier==="quick"?"Fast":"Standard")}</div><div class="note">${U.seconds?U.seconds+" s":"—"} · tier "${esc(U.tier)}"</div></div>
+    </div>
+    <div class="usage-table" role="table" aria-label="Token breakdown">
+      ${rows.map(r=>`<div class="ur" role="row"><div role="cell" style="min-width:0"><b>${esc(r.name)}</b><div class="note">${esc(r.detail)}</div></div>
+        <div class="ubar" role="cell" aria-hidden="true"><span class="${r.kind}" style="width:${(r.t/max*100).toFixed(1)}%"></span></div>
+        <div class="mono un" role="cell">${fmtN(r.t)}</div></div>`).join("")}
+      <div class="ur" role="row"><div role="cell"><b>Thinking before answering</b><div class="note">Not reported to the page. On the strongest model it often adds a few thousand tokens.</div></div><div role="cell"></div><div class="mono un" role="cell">—</div></div>
+    </div>
+    ${log.length?`<div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label">Your reviews on this device · ${sum.n} review${sum.n>1?"s":""} · ~${fmtN(sum.t)} tokens</div>
+      <div class="scroll"><table class="logt"><thead><tr><th>Date</th><th>Piece</th><th>Type</th><th>Verdict</th><th class="r">Sent</th><th class="r">Written</th><th class="r">Total</th><th class="r">Time</th></tr></thead>
+      <tbody>${log.slice(0,30).map(r=>`<tr><td class="mono">${esc(r.date.slice(0,16).replace("T"," "))}</td><td>${esc(r.title)}</td><td>${esc(r.kind)}</td><td class="st ${r.verdict==="FAIL"?"fail":"pass"}">${esc(r.verdict)}</td><td class="r mono">${fmtN(r.input)}</td><td class="r mono">${fmtN(r.output)}</td><td class="r mono">${fmtN(r.total)}</td><td class="r mono">${r.seconds||"—"}s</td></tr>`).join("")}</tbody></table></div>
+    </div>`:""}
+    <p class="note">Estimates: Claude doesn't report exact token counts to the page. Text is counted at about 4 characters per token; each image at about (width × height) ÷ 750 after Claude downsizes it to about 1.2 megapixels. Usage comes from your Claude plan, like a chat message with attachments.</p>
+  </section>`;
+}
+
+/* map model coordinates back onto the full frame and cut detail crops */
+function assemble(out, p, mode, brief){
+  const isVideo = job.kind==="video";
+  const place = it => {
+    const img = Math.max(1, Math.round(+it.img||1));
+    let asset, x=+it.x, y=+it.y, r=+it.r||0;
+    if(isVideo){ asset = p.assets[Math.min(img, p.assets.length)-1]; }
+    else { asset = p.assets[0]; const t = p.tiles[img-2];
+      if(t){ x = t.x0 + x*TS/100; y = t.y0 + y*TS/100; r = r*TS/100; } }
+    const ok = isFinite(x)&&isFinite(y);
+    return {...it, asset: asset.id, x: ok?Math.max(0,Math.min(100,x)):null, y: ok?Math.max(0,Math.min(100,y)):null, r: r?Math.min(15,r):null, timecode: it.timecode || asset.timecode, _a: asset};
+  };
+  const crop = it => {
+    if(it.x==null) return null;
+    const src = it._a._src, W = src.width, H = src.height;
+    const side = Math.max(W, H) * Math.max(0.12, Math.min(0.4, (it.r||4)*2.6/100));
+    const sx = Math.max(0, Math.min(W-side, W*it.x/100 - side/2)), sy = Math.max(0, Math.min(H-side*0.66, H*it.y/100 - side*0.33));
+    const sh = Math.min(H, side*0.66), sw = Math.min(W, side);
+    return canvasFrom(src, sx, sy, sw, sh, 720).toDataURL("image/jpeg", .85);
+  };
+  const issues = (Array.isArray(out.issues)?out.issues:[]).map(place).map(it=>({...it, crop_src: crop(it), _a: undefined}));
+  const strengths = (Array.isArray(out.strengths)?out.strengths:[]).map(place).map(it=>({...it, _a: undefined}));
+  const fails = issues.filter(i=>i.severity==="fail").length;
+  const panel = PANEL.map(f=>{
+    const got = (out.panel||[]).find(x=>x.field===f.field) || {members:[]};
+    return {field:f.field, members:f.members.map(m=>{ const g=(got.members||[]).find(x=>x.name===m.name)||{}; return {name:m.name, lens:m.lens, pattern:m.pattern, score: Math.max(0,Math.min(10,Math.round(+g.score||0))), note:g.note||"No note returned."}; })};
+  });
+  return {
+    title: out.title || job.file.name.replace(/\.[^.]+$/,""), date: new Date().toISOString().slice(0,10), mode, brief,
+    delivery: p.meta, score: Math.max(0,Math.min(100,Math.round(+out.score||0))), summary: out.summary||"",
+    assets: p.assets.map(({_src, ...a})=>a), issues, strengths, fix_plan: out.fix_plan||[], panel, checklist: out.checklist||[],
+    verdict: fails ? "FAIL" : "PASS", fail_count: fails
+  };
+}
+
+/* ---------- report ---------- */
+const sevName = {fail:"Fail", polish:"Polish", strength:"Works"};
+function renderReport(R, isExample){
+  const host = $("report");
+  const issues = (R.issues||[]).map((x,i)=>({...x, kind:x.severity==="fail"?"fail":"polish", n:i+1}));
+  const strengths = (R.strengths||[]).map((x,i)=>({...x, kind:"strength", n:i+1}));
+  const fails = issues.filter(i=>i.kind==="fail").length, polish = issues.length - fails;
+  const assets = R.assets||[];
+  const v = (R.verdict||"FAIL").toLowerCase();
+  const failsOn = id => issues.filter(i=>i.kind==="fail"&&i.asset===id).length;
+  const files = [...new Set(assets.map(a=>a.file||a.label))].join(", ");
+
+  host.innerHTML = `
+  ${isExample?`<div class="banner"><span><b>Example report.</b> This is a real Daimon review of a brand still. Drop your own file above to get yours.</span></div>`:""}
+  <header class="slate">
+    <div class="slate-main">
+      <div class="label">Daimon review · ${esc(R.date)}</div>
+      <h1>${esc(R.title)}</h1>
+      <div class="slate-meta">
+        <div><div class="label">Mode</div><div class="v">${esc(MODES[R.mode]||R.mode)}</div></div>
+        <div><div class="label">File</div><div class="v">${esc(files)}</div></div>
+        <div><div class="label">Source</div><div class="v">${esc(R.delivery||"—")}</div></div>
+        <div><div class="label">Rule</div><div class="v">Zero tolerance</div></div>
+      </div>
+    </div>
+    <div class="verdict ${v}">
+      <div><div class="label">Verdict</div><div class="big">${esc(R.verdict)}</div></div>
+      <div>
+        <div class="label">${fails ? `${fails} fail${fails>1?"s":""} block release` : "Nothing gives it away"}</div>
+        <div class="score">${esc(R.score)}<small> / 100 craft</small></div>
+      </div>
+    </div>
+  </header>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <p class="summary">${esc(R.summary)}</p>
+    ${R.brief?`<p class="brief"><b>Brief:</b> ${esc(R.brief)}</p>`:""}
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Fails and fixes</h2>
+      <div class="filters">
+        <button class="chipbtn fail" data-f="fail" aria-pressed="true">Fails ${fails}</button>
+        <button class="chipbtn polish" data-f="polish" aria-pressed="true">Polish ${polish}</button>
+        <button class="chipbtn strength" data-f="strength" aria-pressed="false">Works ${strengths.length}</button>
+      </div>
+    </div>
+    ${assets.length>1?`<div class="tabs" role="tablist">${assets.map((a,i)=>`<button class="tab" role="tab" data-a="${esc(a.id)}" aria-selected="${i===0}">${esc(a.label)}${a.timecode?` · <span class="mono">${esc(a.timecode)}</span>`:""}${failsOn(a.id)?`<span class="cnt">${failsOn(a.id)}</span>`:""}</button>`).join("")}</div>`:""}
+    <div class="inspector">
+      <div class="viewer">
+        <div class="frame" id="frame"></div>
+        <div class="frame-cap"><span class="mono" id="cap"></span><span class="mono">click a marker or a card</span></div>
+      </div>
+      <div class="list" id="list"></div>
+    </div>
+  </section>
+
+  ${strengths.length?`<section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>What works</h2><span class="label">Keep these when fixing</span></div>
+    <div class="strengths">${strengths.map(s=>`<div class="strength-card">
+      <div class="issue-top"><span class="n strength">${s.n}</span><span class="cat">${esc(s.category)}</span></div>
+      <h3>${esc(s.title)}</h3><p>${esc(s.detail)}</p>
+      ${(s.credited_by||[]).length?`<div class="by">Credited by ${esc(s.credited_by.join(", "))}</div>`:""}
+    </div>`).join("")}</div></section>`:""}
+
+  ${(R.fix_plan||[]).length?`<section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Fix order</h2><span class="label">Do these in sequence, then re-check</span></div>
+    <ol class="fixplan">${R.fix_plan.map(s=>`<li><div>${esc(s)}</div></li>`).join("")}</ol></section>`:""}
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Director panel</h2><span class="label">20 lenses · score out of 10</span></div>
+    <div class="panel">${(R.panel||[]).map(f=>{
+      const avg = f.members.reduce((s,m)=>s+(+m.score||0),0)/Math.max(1,f.members.length);
+      return `<div class="field"><div class="field-head"><h3>${esc(f.field)}</h3><span class="avg">${avg.toFixed(1)}</span></div>
+      ${f.members.map(m=>{const sc=+m.score||0, cls=sc<=5?"low":sc<=7?"mid":"high"; const prof=LOOKUP[m.name]||{};
+        return `<div class="member"><div class="member-top">
+          <div><div class="member-name">${esc(m.name)}</div><div class="member-lens">${esc(m.lens||prof.lens)}</div></div>
+          <div class="bar" aria-hidden="true"><span class="${cls}" style="width:${sc*10}%"></span></div>
+          <div class="member-score">${sc}</div></div>
+          <p class="member-pattern"><span class="label">How they work</span> ${esc(m.pattern||prof.pattern)}</p>
+          <p class="member-note">${esc(m.note)}</p></div>`}).join("")}
+      </div>`}).join("")}</div>
+  </section>
+
+  ${(R.checklist||[]).length?`<section style="display:flex;flex-direction:column;gap:16px">
+    <div class="sec-head"><h2>Checklist</h2><span class="label">Every area inspected</span></div>
+    <div class="checklist">${R.checklist.map(c=>`<div class="check"><div class="st ${esc(c.status)}">${esc({fail:"Fail",pass:"Pass",polish:"Polish",na:"n/a"}[c.status]||c.status)}</div><b>${esc(c.area)}</b><p>${esc(c.note)}</p></div>`).join("")}</div></section>`:""}
+
+  ${usageSection(R.usage)}
+
+  <footer>The director panel reads the work through each person's documented working methods and publicly known craft standards. Notes are interpretive lenses written for this review, not statements by or endorsements from those people. Daimon reviews sampled frames of video, so very brief glitches between samples can slip through; check fast motion yourself.</footer>`;
+
+  const state = {asset: assets[0]?.id, show:{fail:true, polish:true, strength:false}, active:null};
+  const all = [...issues, ...strengths];
+  const keyOf = it => it.kind+"-"+it.n;
+  function draw(){
+    const a = assets.find(x=>x.id===state.asset) || assets[0];
+    if(!a) return;
+    const frame = host.querySelector("#frame"), list = host.querySelector("#list");
+    host.querySelector("#cap").textContent = `${a.label}${a.timecode?"  ·  "+a.timecode:""}`;
+    const onAsset = it => !it.asset || it.asset===a.id;
+    const vis = all.filter(it=>state.show[it.kind] && onAsset(it));
+    frame.innerHTML = `<img src="${a.src}" alt="${esc(a.label)}">` +
+      vis.filter(it=>it.x!=null).map(it=>`${it.r&&state.active===keyOf(it)?`<div class="ring" style="left:${it.x}%;top:${it.y}%;width:${it.r*2}%;aspect-ratio:1"></div>`:""}<button class="mk ${it.kind} ${state.active===keyOf(it)?"active":""}" style="left:${it.x}%;top:${it.y}%" data-k="${keyOf(it)}" aria-label="${sevName[it.kind]} ${it.n}: ${esc(it.title)}">${it.n}</button>`).join("");
+    const others = all.filter(it=>state.show[it.kind] && !onAsset(it)).length;
+    list.innerHTML = vis.map(it=>`<article class="issue ${it.kind} ${state.active===keyOf(it)?"active":""}" id="c-${keyOf(it)}" data-k="${keyOf(it)}" tabindex="0">
+      <div class="issue-top"><span class="n ${it.kind}">${it.n}</span><span class="sev ${it.kind}">${sevName[it.kind]}</span><span class="cat">${esc(it.category)}</span>
+        <span class="where mono">${it.timecode?esc(it.timecode):it.x!=null?`x ${Math.round(it.x)} · y ${Math.round(it.y)}`:""}</span></div>
+      <h3>${esc(it.title)}</h3>
+      ${it.crop_src?`<img class="crop" src="${it.crop_src}" alt="Detail crop: ${esc(it.title)}" loading="lazy">`:""}
+      <p>${esc(it.detail)}</p>
+      ${it.why?`<p><b>Why a viewer notices:</b> ${esc(it.why)}</p>`:""}
+      ${it.fix?`<p><b>Fix:</b> ${esc(it.fix)}</p>`:""}
+      ${it.fix_prompt?`<div class="prompt"><div class="prompt-head"><span class="label">Fix prompt</span><button class="copy" type="button">Copy</button></div><pre>${esc(it.fix_prompt)}</pre></div>`:""}
+      ${(it.flagged_by||it.credited_by||[]).length?`<div class="by">${it.kind==="strength"?"Credited":"Flagged"} by ${esc((it.flagged_by||it.credited_by).join(", "))}</div>`:""}
+    </article>`).join("") + (others?`<p class="label">${others} more on other frames, switch frame above</p>`:"") +
+    (!vis.length?`<p class="brief">Nothing to show with these filters.</p>`:"");
+  }
+  function syncTabs(){ host.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t.dataset.a===state.asset)); }
+  function activate(k, scrollCard){
+    state.active = state.active===k ? null : k; draw();
+    if(state.active && scrollCard){ host.querySelector("#c-"+CSS.escape(k))?.scrollIntoView({behavior:"smooth",block:"nearest"}); }
+  }
+  host.onclick = e=>{
+    const cp = e.target.closest(".copy");
+    if(cp){ e.stopPropagation(); const t=cp.closest(".prompt").querySelector("pre");
+      (navigator.clipboard ? navigator.clipboard.writeText(t.textContent) : Promise.reject()).then(()=>{cp.textContent="Copied";setTimeout(()=>cp.textContent="Copy",1500)})
+        .catch(()=>{const r=document.createRange();r.selectNodeContents(t);const s=getSelection();s.removeAllRanges();s.addRange(r);cp.textContent="Selected, press ⌘C"});
+      return; }
+    const mk = e.target.closest(".mk"); if(mk){ activate(mk.dataset.k,true); return; }
+    const card = e.target.closest(".issue"); if(card && !e.target.closest("pre")){ const it=all.find(x=>keyOf(x)===card.dataset.k);
+      if(it && it.asset && it.asset!==state.asset){ state.asset=it.asset; syncTabs(); } activate(card.dataset.k,false); return; }
+    const f = e.target.closest(".chipbtn"); if(f){ state.show[f.dataset.f]=!state.show[f.dataset.f]; f.setAttribute("aria-pressed",state.show[f.dataset.f]); draw(); return; }
+    const tab = e.target.closest(".tab"); if(tab){ state.asset=tab.dataset.a; state.active=null; syncTabs(); draw(); }
+  };
+  host.onkeydown = e=>{ if((e.key==="Enter"||e.key===" ") && e.target.classList.contains("issue")){ e.preventDefault(); e.target.click(); }};
+  draw();
+}
+
+if (EXAMPLE){
+  // The example was reviewed outside Daimon, so show what a typical photo review here costs.
+  const t = (w,h)=>imgTokens(w,h);
+  EXAMPLE.usage = EXAMPLE.usage || {estimated:true, kind:"image", tier:"complex", truncated:false, seconds:0,
+    promptChars:11790, promptTokens:2948,
+    images:[{label:"Full frame",px:"1600×900",tokens:t(1600,900)},{label:"Detail: top-left",px:"1600×900",tokens:t(1600,900)},{label:"Detail: top-right",px:"1600×900",tokens:t(1600,900)},{label:"Detail: bottom-left",px:"1600×900",tokens:t(1600,900)},{label:"Detail: bottom-right",px:"1600×900",tokens:t(1600,900)}],
+    imageTokens:t(1600,900)*5, outputChars:17500, outputTokens:5000};
+  EXAMPLE.usage.total = EXAMPLE.usage.promptTokens + EXAMPLE.usage.imageTokens + EXAMPLE.usage.outputTokens;
+  renderReport(EXAMPLE, true);
+}
+</script>
